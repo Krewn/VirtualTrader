@@ -1,6 +1,6 @@
  <license>
 
-	Project Title: VTrader
+	Project Title: VirtualTrader
 	Author(s): Kevin Nelson
 	Product Owner(s): Kevin Nelson
 	
