@@ -97,6 +97,11 @@ class portfolio:
                 print(k+" unavailible for trading.")
         self.save(self)
 
+    def liquidate(self,shares = None):
+        shares = shares if shares != None else self.holdings
+        for k in shares:
+            self.order(k,-1*shares[k])
+
     def quote(self, tag, n=3):
         try:
             stock = Share(tag)
