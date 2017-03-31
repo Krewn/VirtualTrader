@@ -18,15 +18,18 @@ class portfolio:
         self.Variables = list(set(dir(self)).difference(set(initalVars)))
         self.fsdb = dbHandle(".VTrader.FSaaDB")
         self.tradingFee = 0
+
     def save(self):
         v = {}
         for k in self.Variables:
             exec("v['"+k+"']=self."+k)
         self.fsdb.dump(v)
+
     def load(self):
         values = self.fsdb.read(self.fsdb.root)
         for k in values:
             exec("self."+k+"=values['"+k+"']")
+
     def evaluate(self):
         value = self.cash
         for k in self.holdings:
@@ -36,6 +39,7 @@ class portfolio:
                 value += float(self.lastKnowPrices[k]) * self.holdings[k]
         self.evaluations.append(value)
         return(value)
+
     def holdingSummary(self):
         value = self.cash
         summaryHead = "\nCash:\t" + str(self.cash) + "\n"
@@ -52,6 +56,7 @@ class portfolio:
         summaryHead += "Stocks:\t" + str(total)+"\n"
         summaryHead += "Total:\t" + str(total+self.cash)+"\n\n"
         return(summaryHead+summary+"\n")
+
     def order(self,tag,quantity,cp=True):
         try:
             aQuote = float(self.quote(tag)[1])
@@ -74,11 +79,24 @@ class portfolio:
         if(cp):
             self.save()
         return()
-    def batchOrder(self,inputFile):
+
+    def batchOrder(self,inputFile,depth=None,funds=None,qFunc = lambda nOptions,place,mmin,mmax,f=lambda x :1. : f(mmin+(mmax-mmin)*(place)/nOptions)):
         fh = open(inputFile,"r")
-        for o in [k.split("\t") for k in fh.read().split("\n")]:
-            self.order(o[0],o[1],cp=False)
+        orderOptionsinfo = [o for o in [k.split("\t") for k in fh.read().split("\n")]]
+        orders = []
+        depth = depth if depth!=None else len(orderOptionsinfo)/7 # 7 is my lucky number...
+        normalizedQuantites = [qFunc(depth,k,0,0) for k in range(0,depth)]
+        nsum = sum(normalizedQuantites)
+        funds = funds if funds != None else self.cash
+        normalizedQuantites = [funds*(k/nsum) for k in normalizedQuantites]
+        orders = []
+        for n,k in enumerate(normalizedQuantites):
+            try:
+                self.order(orderOptionsinfo[n][0],int(normalizedQuantites/self.quote(orderOptionsinfo[n][0])))
+            except:
+                print(k+" unavailible for trading.")
         self.save(self)
+
     def quote(self, tag, n=3):
         try:
             stock = Share(tag)
@@ -90,9 +108,11 @@ class portfolio:
             if (n > 0):
                 return (self.quote(tag, n=n - 1))
             else:
-                raise ("YahooFinanceError", "Mal-Formed Response 3x")
+                return(self.lastKnowPrices[tag])
+
     def setRepo(self):
         print("todo")
+
     def pushTrades(self):
         print("todo")
 
