@@ -2,6 +2,7 @@
 from yahoo_finance import Share
 from FSaaDb import dbHandle
 from datetime import datetime
+from FSaaDb import os
 
 def makeButton():
     print("todo")
@@ -33,10 +34,11 @@ class portfolio:
     def evaluate(self):
         value = self.cash
         for k in self.holdings:
-            try:
-                value += float(self.quote(k,n=3)[1])*self.holdings[k]
-            except:
-                value += float(self.lastKnowPrices[k]) * self.holdings[k]
+            if (self.holdings[k] != 0):
+                try:
+                    value += float(self.quote(k,n=3)[1])*self.holdings[k]
+                except:
+                    value += float(self.lastKnowPrices[k]) * self.holdings[k]
         self.evaluations.append(value)
         return(value)
 
@@ -45,14 +47,16 @@ class portfolio:
         summaryHead = "\nCash:\t" + str(self.cash) + "\n"
         summary = ""
         total = 0
-        summary += "Tag" + "\t" + "Quantity" + "\t" + "Value" + "\n"
+        summary += "Tag" + "\t" + "Quantity" + "\t" + "Price" + "\t" + "Value" + "\n"
         for k in self.holdings:
-            try:
-                value = float(self.quote(self.holdings[k],n=3)[1])*self.holdings[k]
-            except:
-                value = float(self.lastKnowPrices[k]) * self.holdings[k]
-            summary += k+"\t"+k+"\t\t"+str(value)+"\n"
-            total += value
+            if(self.holdings[k] != 0):
+                try:
+                    p = float(self.quote(k,n=3)[1])
+                except:
+                    p = float(self.lastKnowPrices[k])
+                value = p * self.holdings[k]
+                summary += k+"\t"+str(self.holdings[k])+"\t\t"+str(p)+"\t"+str(value)+"\n"
+                total += value
         summaryHead += "Stocks:\t" + str(total)+"\n"
         summaryHead += "Total:\t" + str(total+self.cash)+"\n\n"
         return(summaryHead+summary+"\n")
@@ -64,6 +68,7 @@ class portfolio:
             print("Order failed:"+str([tag,quantity])+"-Unable To Obtain Price.")
             return()
         print(aQuote)
+        quantity=int(quantity)
         transactionCost = aQuote*quantity
         if(transactionCost > self.cash):
             print("Order failed:" + str([tag, quantity]) + "-Insufficient Funds")
@@ -82,7 +87,7 @@ class portfolio:
 
     def batchOrder(self,inputFile,depth=None,funds=None,qFunc = lambda nOptions,place,mmin,mmax,f=lambda x :1. : f(mmin+(mmax-mmin)*(place)/nOptions)):
         fh = open(inputFile,"r")
-        orderOptionsinfo = [o for o in [k.split("\t") for k in fh.read().split("\n")]]
+        orderOptionsinfo = [k.split("\t") for k in fh.read().split("\n")]
         orders = []
         depth = depth if depth!=None else len(orderOptionsinfo)/7 # 7 is my lucky number...
         normalizedQuantites = [qFunc(depth,k,0,0) for k in range(0,depth)]
@@ -92,15 +97,16 @@ class portfolio:
         orders = []
         for n,k in enumerate(normalizedQuantites):
             try:
-                self.order(orderOptionsinfo[n][0],int(normalizedQuantites/self.quote(orderOptionsinfo[n][0])))
+                if(orderOptionsinfo[n][0]!="Index"):
+                    self.order(orderOptionsinfo[n][0],int(k/float(self.quote(orderOptionsinfo[n][0])[1])))
             except:
-                print(k+" unavailible for trading.")
-        self.save(self)
+                print(orderOptionsinfo[n][0]+" unavailible for trading.")
+        self.save()
 
     def liquidate(self,shares = None):
         shares = shares if shares != None else self.holdings
         for k in shares:
-            self.order(k,-1*shares[k])
+            self.order(k,int(-1*shares[k]))
 
     def quote(self, tag, n=3):
         try:
@@ -133,6 +139,15 @@ def UI():
             print(myPortfolio.order(tag,float(quantity)))
         if (task == "statement"):
             print(myPortfolio.holdingSummary())
+        if (task == "liquidate"):
+            myPortfolio.liquidate()
+            myPortfolio.holdingSummary()
+        if (task == "batchOrder"):
+            ## inputFile, depth = None, funds = None, qFunc = lambda nOptions, place, mmin, mmax
+            i = os.path.basename(input("inputFile :"))
+            d = int(input("nStocks :"))
+            f = int(input("MaxToSpend :"))
+            myPortfolio.batchOrder(i,d,f)
     myPortfolio.evaluate()
     myPortfolio.save()
     print("Goodbye!")
