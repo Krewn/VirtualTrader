@@ -15,10 +15,10 @@ class portfolio:
         self.holdings = {}
         self.lastKnowPrices = {}
         self.repository = ""
-        self.cash = 10000
+        self.cash = 10000.
         self.Variables = list(set(dir(self)).difference(set(initalVars)))
         self.fsdb = dbHandle(".VTrader.FSaaDB")
-        self.tradingFee = 0
+        self.tradingFee = 0.
 
     def save(self):
         v = {}
